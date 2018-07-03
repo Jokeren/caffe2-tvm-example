@@ -26,6 +26,21 @@ arch = "arm64"
 target = "llvm -target=%s-linux-android" % arch
 
 def test_onnx_model(tgt):
+    print("Init data...")
+    data_shape = (1, 3, 224, 224)
+    dtype = np.float32
+    org_img = np.random.random(data_shape)
+    img = np.asarray(org_img).astype(np.float32).copy()
+
+    print('RPC Connecting...')
+    remote = rpc.connect(proxy_host, proxy_port, key=key)
+    print('RPC Connected')
+
+    print("Build Graph...")
+    onnx_graph = onnx.load("model.onnx")
+    sym, params = nnvm.frontend.from_onnx(onnx_graph)
+    opt_level = 0
+    input_name = "data_0"
     if tgt == "gpu":
         # Mobile GPU
         target = "opencl"
@@ -36,28 +51,11 @@ def test_onnx_model(tgt):
         target = "llvm -target=%s-linux-android" % arch
         target_host = None
         ctx = remote.cpu(0)
-    data_shape = ()
-    onnx_graph = onnx.load("xxx.onnx")
-    sym, params = nnvm.frontend.from_onnx(onnx_graph)
-    opt_level = 0
-    input_name = "data"
-
-    print("Build Graph...")
     with nnvm.compiler.build_config(opt_level=opt_level, add_pass=None):
         graph, lib, params = nnvm.compiler.build(sym, target, {input_name: data_shape}, params=params, target_host=target_host)
 
-    dtype = np.float32
-    org_img = np.random(data_shape)
-    img = np.asarray(org_img).astype(np.float32).copy()
-    img /= 255
-
-    # connect to the proxy
-    print('RPC Connecting...')
-    remote = rpc.connect(proxy_host, proxy_port, key=key)
-    print('RPC Connected')
-
     print('DEPLOY: Shared Library Uploading...')
-    so_name = model_name + "aarch64.so"
+    so_name = "model-aarch64.so"
     temp = util.tempdir()
     path_so = temp.relpath(so_name)
     lib.export_library(path_so, ndk.create_shared)
