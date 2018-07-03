@@ -15,7 +15,9 @@ git clone --recursive https://github.com/dmlc/tvm
 export PYTHONPATH=/path/to/tvm/python:/path/to/tvm/topi/python:${PYTHONPATH}
 cd tvm
 mkdir build
-cp cmake/config.cmake build  # change configurations before make
+cp cmake/config.cmake build
+cd build
+cmake ..  # change configurations before make
 make -j4
 ```
 
@@ -58,6 +60,7 @@ $ export TVM_NDK_CC=/path/to/tvm/cc/bin/aarch64-linux-android-g++
 tvm4j
 
 ```
+cd tvm
 make jvmpkg
 make jvminstall
 ```
@@ -84,7 +87,8 @@ ADD_LDLIBS = /path/to/libOpenCL.so
 build android_rpc app
 
 ```
-$ gradle clean build
-$ ./dev_tools/gen_keystore.sh
-$ ./dev_tools/sign_apk.sh
+cd android_rpc
+gradle clean build
+./dev_tools/gen_keystore.sh
+./dev_tools/sign_apk.sh
 ```
