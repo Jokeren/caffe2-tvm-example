@@ -1,1 +1,1 @@
-# caffe2-tvm-samples
+# tvm-samples
