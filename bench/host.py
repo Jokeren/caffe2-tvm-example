@@ -4,68 +4,155 @@ import time
 import sys
 import tvm
 import topi
+from topi.util import get_const_tuple
 import numpy as np
 
+from data_type import get_data_type
+
 spaces = [14, 26, 52, 104]
-channels = [64, 128, 256, 512]
-kernels = [1, 3]
+channels = [32, 64, 128, 256, 512]
+kernels = [3]
 
 warmup = 2
 run = 10
 
 
-def bench_tvm(tgt, dtype):
-    if dtype == np.float32:
-        tvm_dtype = "float32"
-    elif dtype == np.int8:
-        tvm_dtype = "int8"
+def bench_tvm(target, dtype, layout, opt_level):
+    ctx = tvm.context(target, 0)
+    if not ctx.exist:
+        print("Skip %s", target)
+        return
 
-    if tgt == "cpu":
-        target = "llvm"
-        ctx = tvm.cpu(0)
-    else:
-        rget = "opencl"
-        ctx = tvm.context(target, 0)
+    print("------------------")
+    print("standard")
+    print("")
 
     for space in spaces:
         for channel in channels:
             for kernel in kernels:
-                # create schedule
-                input_shape = (1, channel, space, space)
-                filter_shape = (channel, channel, kernel, kernel)
-                input_holder = tvm.placeholder(input_shape, dtype=tvm_dtype)
-                filter_holder = tvm.placeholder(filter_shape, dtype=tvm_dtype)
+                # init data
+                if layout == "NCHW":
+                    input_shape = (1, channel, space, space)
+                    filter_shape = (channel, channel, kernel, kernel)
+                else:
+                    continue
+
+                input_data = np.random.random(input_shape)
+                filter_data = np.random.random(filter_shape)
+                input_holder = tvm.placeholder(input_shape, dtype=dtype.tvm_type())
+                filter_holder = tvm.placeholder(filter_shape, dtype=dtype.tvm_type())
                 stride_holder = tvm.var("s")
                 padding_holder = tvm.var("p")
-                conv = topi.nn.conv2d_nchw(input_holder, filter_holder, 1, 0)
-                ts = tvm.create_schedule(conv.op)
+                tvm_input = tvm.nd.array(input_data.astype(dtype.np_type()), ctx)
+                tvm_filter = tvm.nd.array(filter_data.astype(dtype.np_type()), ctx)
 
-                # build code
-                tl = tvm.lower(ts, [input_holder, filter_holder, stride_holder, padding_holder])
-                f = tvm.build(tl, target=target, name="myconv")
+                # create schedule
+                with tvm.target.create(target):
+                    conv = topi.nn.conv2d(input_holder, filter_holder, 1, 0, layout)
+                    if layout == "NCHW":
+                        ts = topi.generic.schedule_conv2d_nchw([conv])
+                    else:
+                        continue
 
-                # run
-                input_data = np.random.random(input_shape, )
+                tvm_output = tvm.nd.array(np.zeros(get_const_tuple(conv.shape), dtype=conv.dtype), ctx)
+
+                with tvm.build_config(opt_level=opt_level, add_pass=None):
+                    f_name = "myconv_" + str(kernel) + "_" + str(space) + "_" + str(channel)
+
+                    # build code
+                    try:
+                        f = tvm.build(ts, [input_holder, filter_holder, conv], target, name=f_name)
+                    except BaseException:
+                        print(f_name + " " + str(layout) + " " + target + " error!")
+                    else:
+                        # warmup
+                        for _ in range(warmup):
+                            f(tvm_input, tvm_filter, tvm_output)
+                        # run
+                        start = time.time()
+                        for _ in range(run):
+                            f(tvm_input, tvm_filter, tvm_output)
+                        end = time.time()
+                        print("layout: " + layout + ", input_shape: " + str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + str((end - start) / run))
+
+    print("------------------")
+    print("depthwise")
+    print("")
+
+    for space in spaces:
+        for channel in channels:
+            for kernel in kernels:
+                # init data
+                if layout == "NCHW":
+                    input_shape = (1, channel, space, space)
+                    filter_shape = (channel, channel, kernel, kernel)
+                elif layout == "NHWC":
+                    input_shape = (1, space, space, channel)
+                    filter_shape = (kernel, kernel, channel, channel)
+                else:
+                    continue
+                
+                input_data = np.random.random(input_shape)
                 filter_data = np.random.random(filter_shape)
-                tvm_input = tvm.nd.array(input_data.astype(dtype), ctx)
-                tvm_filter = tvm.nd.array(filter_data.astype(dtype), ctx)
-                start = time.time()
-                for _ in range(run):
-                    f(tvm_input, tvm_filter, 1, 0)
-                end = time.time()
-                print("input_shape: " + str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + str((end - start) / run))
+                input_holder = tvm.placeholder(input_shape, dtype=dtype.tvm_type())
+                filter_holder = tvm.placeholder(filter_shape, dtype=dtype.tvm_type())
+                stride_holder = tvm.var("s")
+                padding_holder = tvm.var("p")
+                tvm_input = tvm.nd.array(input_data.astype(dtype.np_type()), ctx)
+                tvm_filter = tvm.nd.array(filter_data.astype(dtype.np_type()), ctx)
+
+                # create schedule
+                with tvm.target.create(target):
+                    if layout == "NCHW":
+                        conv = topi.nn.depthwise_conv2d_nchw(input_holder, filter_holder, 1, 0)
+                        ts = topi.generic.schedule_depthwise_conv2d_nchw([conv])
+                    elif layout == "NHWC":
+                        conv = topi.nn.depthwise_conv2d_nhwc(input_holder, filter_holder, 1, 0)
+                        ts = topi.generic.schedule_depthwise_conv2d_nhwc([conv])
+                    else:
+                        continue
+
+                tvm_output = tvm.nd.array(np.zeros(get_const_tuple(conv.shape), dtype=conv.dtype), ctx)
+
+                with tvm.build_config(opt_level=opt_level, add_pass=None):
+                    f_name = "myconv_depthwise_" + str(kernel) + "_" + str(space) + "_" + str(channel)
+
+                    # build code
+                    try:
+                        f = tvm.build(ts, [input_holder, filter_holder, conv], target, name=f_name)
+                    except BaseException:
+                        print(f_name + " error!")
+                    else:
+                        # warmup
+                        for _ in range(warmup):
+                            f(tvm_input, tvm_filter, tvm_output)
+                        # run
+                        start = time.time()
+                        for _ in range(run):
+                            f(tvm_input, tvm_filter, tvm_output)
+                        end = time.time()
+                        print("layout: " + layout + ", input_shape: " + str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + str((end - start) / run))
+                        print(f_name + " succ!")
 
 
-def bench_caffe2(tgt, dtype):
+def bench_caffe2(tgt, dtype, layout, opt_level):
     pass
 
 
 if __name__ == "__main__":
-    tgt = sys.argv[1]
-    if sys.argv[2] == "float" or sys.argv[2] == "float32":
-        dtype = np.float32
-    elif sys.argv[2] == "int8":
-        dtype = np.int8
+    if len(sys.argv) > 1:
+        target = sys.argv[1]
+        dtype = get_data_type(sys.argv[2])
+        layout = sys.argv[3]
+        opt_level = int(sys.argv[4])
 
-    bench_tvm(tgt, dtype)
-    bench_caffe2(tgt, dtype)
+        bench_tvm(target, dtype, layout, opt_level)
+        bench_caffe2(target, dtype, layout, opt_level)
+    else:
+        for target in ["llvm", "opencl"]:
+            for dtype in ["float", "int8"]:
+                for layout in ["NCHW", "NHWC", "HWCN"]:
+                    for opt_level in [1, 3]:
+                        bench_tvm(target, get_data_type(dtype), layout, opt_level)
+                        bench_caffe2(target, get_data_type(dtype), layout, opt_level)
+
