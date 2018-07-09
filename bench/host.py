@@ -135,10 +135,6 @@ def bench_tvm(target, dtype, layout, opt_level):
                         print(f_name + " succ!")
 
 
-def bench_caffe2(tgt, dtype, layout, opt_level):
-    pass
-
-
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         target = sys.argv[1]
@@ -147,12 +143,10 @@ if __name__ == "__main__":
         opt_level = int(sys.argv[4])
 
         bench_tvm(target, dtype, layout, opt_level)
-        bench_caffe2(target, dtype, layout, opt_level)
     else:
         for target in ["llvm", "opencl"]:
             for dtype in ["float", "int8"]:
                 for layout in ["NCHW", "NHWC", "HWCN"]:
                     for opt_level in [1, 3]:
                         bench_tvm(target, get_data_type(dtype), layout, opt_level)
-                        bench_caffe2(target, get_data_type(dtype), layout, opt_level)
 
