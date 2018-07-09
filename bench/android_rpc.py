@@ -42,7 +42,7 @@ def build_and_run(phase, input_holder, filter_holder, kernel, space, channel,
                   ctx, ts, conv,
                   target, target_host, remote, layout, opt_level):
     with tvm.build_config(opt_level=opt_level, add_pass=None):
-        f_name = "myconv_" + str(kernel) + "_" + str(space) + "_" + str(channel)
+        f_name = "myconv_" + phase + "_" + str(kernel) + "_" + str(space) + "_" + str(channel)
 
         # build code
         # I am not sure if the configuration is runnable or not, so wrap it by a try and except
