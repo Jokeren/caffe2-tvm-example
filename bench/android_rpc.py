@@ -133,46 +133,46 @@ def bench_tvm(tgt, dtype, layout, opt_level):
                             continue
 
     # depthwise
-    #for space in spaces:
-    #    for channel in channels:
-    #        for kernel in depthwise_kernels:
-    #            (input_shape, filter_shape) = get_input_and_filter_shape(layout, space, channel, kernel)
-    #            input_holder = tvm.placeholder(input_shape, dtype=dtype.tvm_type())
-    #            filter_holder = tvm.placeholder(filter_shape, dtype=dtype.tvm_type())
-    #            stride_holder = tvm.var("s")
-    #            padding_holder = tvm.var("p")
+    for space in spaces:
+        for channel in channels:
+            for kernel in depthwise_kernels:
+                (input_shape, filter_shape) = get_input_and_filter_shape(layout, space, channel, kernel)
+                input_holder = tvm.placeholder(input_shape, dtype=dtype.tvm_type())
+                filter_holder = tvm.placeholder(filter_shape, dtype=dtype.tvm_type())
+                stride_holder = tvm.var("s")
+                padding_holder = tvm.var("p")
 
-    #            # create optimal schedule
-    #            with tvm.target.create(target):
-    #                try:
-    #                    if layout == "NCHW":
-    #                        conv = topi.nn.depthwise_conv2d_nchw(input_holder, filter_holder, [1, 1], 0)
-    #                        ts = topi.generic.schedule_depthwise_conv2d_nchw([conv])
-    #                    elif layout == "NHWC":
-    #                        conv = topi.nn.depthwise_conv2d_nhwc(input_holder, filter_holder, [1, 1], 0)
-    #                        ts = topi.generic.schedule_depthwise_conv2d_nhwc([conv])
-    #                    elif layout == "HWCN":
-    #                        conv = topi.nn.depthwise_conv2d_hwcn(input_holder, filter_holder, [1, 1], 0)
-    #                        ts = topi.generic.schedule_depthwise_conv2d_hwcn([conv])
-    #                except BaseException:
-    #                    print("depthwise--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> schedule skip".format( \
-    #                          target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
-    #                    continue
-    #                else:
-    #                    try:
-    #                        tvm_input = tvm.nd.array(np.random.random(input_shape).astype(dtype.np_type()), ctx)
-    #                        tvm_filter = tvm.nd.array(np.random.random(filter_shape).astype(dtype.np_type()), ctx)
-    #                        tvm_output = tvm.nd.array(np.zeros(get_const_tuple(conv.shape), dtype=conv.dtype), ctx)
+                # create optimal schedule
+                with tvm.target.create(target):
+                    try:
+                        if layout == "NCHW":
+                            conv = topi.nn.depthwise_conv2d_nchw(input_holder, filter_holder, [1, 1], 0)
+                            ts = topi.generic.schedule_depthwise_conv2d_nchw([conv])
+                        elif layout == "NHWC":
+                            conv = topi.nn.depthwise_conv2d_nhwc(input_holder, filter_holder, [1, 1], 0)
+                            ts = topi.generic.schedule_depthwise_conv2d_nhwc([conv])
+                        elif layout == "HWCN":
+                            conv = topi.nn.depthwise_conv2d_hwcn(input_holder, filter_holder, [1, 1], 0)
+                            ts = topi.generic.schedule_depthwise_conv2d_hwcn([conv])
+                    except BaseException:
+                        print("depthwise--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> schedule skip".format( \
+                              target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
+                        continue
+                    else:
+                        try:
+                            tvm_input = tvm.nd.array(np.random.random(input_shape).astype(dtype.np_type()), ctx)
+                            tvm_filter = tvm.nd.array(np.random.random(filter_shape).astype(dtype.np_type()), ctx)
+                            tvm_output = tvm.nd.array(np.zeros(get_const_tuple(conv.shape), dtype=conv.dtype), ctx)
 
-    #                        build_and_run("depthwise", input_holder, filter_holder, kernel, space, channel, 
-    #                                      tvm_input, tvm_filter, tvm_output,
-    #                                      ctx, ts, conv,
-    #                                      target, target_host, remote, layout, opt_level)
-    #                    except BaseException:
-    #                        print("depthwise--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> run skip".format( \
-    #                              target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
-    #                    else:
-    #                        continue
+                            build_and_run("depthwise", input_holder, filter_holder, kernel, space, channel, 
+                                          tvm_input, tvm_filter, tvm_output,
+                                          ctx, ts, conv,
+                                          target, target_host, remote, layout, opt_level)
+                        except BaseException:
+                            print("depthwise--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> run skip".format( \
+                                  target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
+                        else:
+                            continue
 
 
 if __name__ == "__main__":
