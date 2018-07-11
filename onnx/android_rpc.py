@@ -24,10 +24,8 @@ key = "android"
 
 # Change target configuration.
 # Run `adb shell cat /proc/cpuinfo` to find the arch.
-arch = "arm64"
-target = "llvm -target=%s-linux-android" % arch
 
-def test_onnx_model(tgt, name, opt_level):
+def test_onnx_model(arch, tgt, name, opt_level):
     print("Init data...")
     model = get_model_config(name)
     input_data_shape = model.input_shape()
@@ -47,7 +45,10 @@ def test_onnx_model(tgt, name, opt_level):
     input_name = model.input_name()
     if tgt == "cpu":
         # Mobile CPU
-        target = "llvm -target=%s-linux-android" % arch
+        if arch == "armv7a":
+            target = "llvm -target=armv7a-linux-android -mfloat-abi=soft"
+        else:
+            target = "llvm -target=%s-linux-android" % arch
         target_host = None
         ctx = remote.cpu(0)
     else:
@@ -82,4 +83,4 @@ def test_onnx_model(tgt, name, opt_level):
     print(prof_res)
 
 if __name__ == "__main__":
-    test_onnx_model(sys.argv[2], sys.argv[1], int(sys.argv[3]))
+    test_onnx_model(sys.argv[1], sys.argv[3], sys.argv[2], int(sys.argv[4]))
