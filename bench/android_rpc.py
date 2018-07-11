@@ -21,11 +21,11 @@ from utils import get_input_and_filter_shape
 # conv configs
 spaces = [14, 26, 52, 104]
 channels = [64, 128, 256, 512]
-standard_kernels = [3]
+standard_kernels = [1, 3]
 depthwise_kernels = [3]
 
-warmup = 1
-run = 5
+warmup = 2
+run = 10
 
 # Set to be address of tvm proxy.
 proxy_host = os.environ["TVM_ANDROID_RPC_PROXY_HOST"]
@@ -34,7 +34,6 @@ key = "android"
 
 # Change target configuration.
 # Run `adb shell cat /proc/cpuinfo` to find the arch.
-arch = "arm64"
 
 
 def build_and_run(phase, input_holder, filter_holder, kernel, space, channel, 
@@ -48,7 +47,7 @@ def build_and_run(phase, input_holder, filter_holder, kernel, space, channel,
         # I am not sure if the configuration is runnable or not, so wrap it by a try and except
         try:
             f = tvm.build(ts, [input_holder, filter_holder, conv], target=target, target_host=target_host, name=f_name)
-        except BaseException:
+        except BaseException as e:
             print("{0}--target: {1}, dtype: {2}, layout: {3}, input_shape: {4}, filter_shape: {5} -> failed".format( \
                   phase, target, str(tvm_input.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
         else:
@@ -69,13 +68,16 @@ def build_and_run(phase, input_holder, filter_holder, kernel, space, channel,
                   cost))
 
 
-def bench_tvm(tgt, dtype, layout, opt_level):
+def bench_tvm(arch, tgt, dtype, layout, opt_level):
     # connect to the proxy
     remote = rpc.connect(proxy_host, proxy_port, key=key)
 
     if tgt == "llvm":
         # Mobile CPU
-        target = "llvm -target=%s-linux-android" % arch
+        if arch == "armv7a":
+            target = "llvm -target=armv7a-linux-android -mfloat-abi=soft"
+        else:
+            target = "llvm -target=%s-linux-android" % arch
         target_host = None
         ctx = remote.cpu(0)
     elif tgt == "opencl":
@@ -126,7 +128,7 @@ def bench_tvm(tgt, dtype, layout, opt_level):
                                           tvm_input, tvm_filter, tvm_output,
                                           ctx, ts, conv,
                                           target, target_host, remote, layout, opt_level)
-                        except BaseException:
+                        except BaseException as e:
                             print("standard--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> run skip".format( \
                                   target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
                         else:
@@ -176,16 +178,17 @@ def bench_tvm(tgt, dtype, layout, opt_level):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        target = sys.argv[1]
-        dtype = get_data_type(sys.argv[2])
-        layout = sys.argv[3]
-        opt_level = int(sys.argv[4])
+    arch = sys.argv[1]
+    if len(sys.argv) > 2:
+        target = sys.argv[2]
+        dtype = get_data_type(sys.argv[3])
+        layout = sys.argv[4]
+        opt_level = int(sys.argv[5])
 
         bench_tvm(target, dtype, layout, opt_level)
     else:
-        for target in ["llvm", "opencl"]:
+        for target in ["llvm"]:
             for dtype in ["int8", "float"]:
                 for layout in ["NCHW", "NHWC", "HWCN"]:
                     for opt_level in [3]:
-                        bench_tvm(target, get_data_type(dtype), layout, opt_level)
+                        bench_tvm(arch, target, get_data_type(dtype), layout, opt_level)
