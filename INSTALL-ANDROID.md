@@ -54,7 +54,7 @@ Android Standalone Toolchain
 
 ```
 $${ANDROID_HOME}/ndk-bundle/build/tools/make-standalone-toolchain.sh --platform=android-28 --use-llvm --arch=arm64 --install-dir=/path/to/tvm/cc
-$ export TVM_NDK_CC=/path/to/tvm/cc/bin/aarch64-linux-android-g++
+$ export TVM_NDK_CC=/path/to/tvm/cc/bin/xxx-clang++
 ```
 
 tvm4j
@@ -70,6 +70,9 @@ android_rpc/app/src/main/jni/config.mk
 https://github.com/dmlc/tvm/tree/master/apps/android_rpc
 
 ```
+# reference: https://developer.android.com/ndk/guides/
+# arm64-v8a
+# armeabi-v7a	
 APP_ABI = arm64-v8a
 
 APP_PLATFORM = android-28

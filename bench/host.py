@@ -17,15 +17,19 @@ warmup = 2
 run = 10
 
 
-def bench_tvm(target, dtype, layout, opt_level):
+def bench_tvm(arch, tgt, dtype, layout, opt_level):
+    if tgt == "cpu":
+        target = "llvm"
+    elif tgt == "gpu":
+        target = "opencl"
+    else:
+        print("Skip %s", tgt)
+        return
+
     ctx = tvm.context(target, 0)
     if not ctx.exist:
         print("Skip %s", target)
         return
-
-    print("------------------")
-    print("standard")
-    print("")
 
     for space in spaces:
         for channel in channels:
@@ -65,19 +69,11 @@ def bench_tvm(target, dtype, layout, opt_level):
                     except BaseException:
                         print(f_name + " " + str(layout) + " " + target + " error!")
                     else:
-                        # warmup
-                        for _ in range(warmup):
-                            f(tvm_input, tvm_filter, tvm_output)
                         # run
-                        start = time.time()
-                        for _ in range(run):
-                            f(tvm_input, tvm_filter, tvm_output)
-                        end = time.time()
-                        print("layout: " + layout + ", input_shape: " + str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + str((end - start) / run))
-
-    print("------------------")
-    print("depthwise")
-    print("")
+                        timer = f.time_evaluator(f.entry_name, ctx, number=run)
+                        cost = timer(tvm_input, tvm_filter, tvm_output).mean
+                        print("standard--target: " + target + ", layout: " + layout + ", input_shape: " + \
+                              str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + cost)
 
     for space in spaces:
         for channel in channels:
@@ -123,30 +119,25 @@ def bench_tvm(target, dtype, layout, opt_level):
                     except BaseException:
                         print(f_name + " error!")
                     else:
-                        # warmup
-                        for _ in range(warmup):
-                            f(tvm_input, tvm_filter, tvm_output)
-                        # run
-                        start = time.time()
-                        for _ in range(run):
-                            f(tvm_input, tvm_filter, tvm_output)
-                        end = time.time()
-                        print("layout: " + layout + ", input_shape: " + str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + str((end - start) / run))
-                        print(f_name + " succ!")
+                        timer = f.time_evaluator(f.entry_name, ctx, number=run)
+                        cost = timer(tvm_input, tvm_filter, tvm_output).mean
+                        print("depthwise--target: " + target + ", layout: " + layout + ", input_shape: " + \
+                              str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + cost)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        target = sys.argv[1]
-        dtype = get_data_type(sys.argv[2])
-        layout = sys.argv[3]
-        opt_level = int(sys.argv[4])
+    arch = sys.argv[1]
+    if len(sys.argv) > 2:
+        target = sys.argv[2]
+        dtype = get_data_type(sys.argv[3])
+        layout = sys.argv[4]
+        opt_level = int(sys.argv[5])
 
-        bench_tvm(target, dtype, layout, opt_level)
+        bench_tvm(arch, target, dtype, layout, opt_level)
     else:
-        for target in ["llvm", "opencl"]:
+        for target in ["cpu", "gpu"]:
             for dtype in ["float", "int8"]:
                 for layout in ["NCHW", "NHWC", "HWCN"]:
-                    for opt_level in [1, 3]:
-                        bench_tvm(target, get_data_type(dtype), layout, opt_level)
+                    for opt_level in [3]:
+                        bench_tvm(arch, target, get_data_type(dtype), layout, opt_level)
 

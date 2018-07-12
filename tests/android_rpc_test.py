@@ -6,6 +6,7 @@ And configure the proxy host field as commented.
 
 import tvm
 import os
+import sys
 from tvm.contrib import rpc, util, ndk
 import numpy as np
 
@@ -14,12 +15,13 @@ proxy_host = os.environ["TVM_ANDROID_RPC_PROXY_HOST"]
 proxy_port = 9090
 key = "android"
 
-# Change target configuration.
-# Run `adb shell cat /proc/cpuinfo` to find the arch.
-arch = "arm64"
-target = "llvm -target=%s-linux-android" % arch
 
-def test_rpc_module():
+def test_rpc_module(arch):
+    if arch == "armv7a":
+        target = "llvm -target=armv7a-linux-android -mfloat-abi=soft"
+    else:
+        target = "llvm -target=%s-linux-android" % arch
+
     # graph
     n = tvm.convert(4096)
     A = tvm.placeholder((n,), name='A')
@@ -72,4 +74,4 @@ def test_rpc_module():
     np.testing.assert_equal(b.asnumpy(), a.asnumpy() + 1)
 
 if __name__ == "__main__":
-    test_rpc_module()
+    test_rpc_module(sys.argv[1])

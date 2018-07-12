@@ -32,9 +32,6 @@ proxy_host = os.environ["TVM_ANDROID_RPC_PROXY_HOST"]
 proxy_port = 9090
 key = "android"
 
-# Change target configuration.
-# Run `adb shell cat /proc/cpuinfo` to find the arch.
-
 
 def build_and_run(phase, input_holder, filter_holder, kernel, space, channel, 
                   tvm_input, tvm_filter, tvm_output,
@@ -52,7 +49,7 @@ def build_and_run(phase, input_holder, filter_holder, kernel, space, channel,
                   phase, target, str(tvm_input.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
         else:
             # build code
-            so_name = f_name + "-arch64.so"
+            so_name = f_name + ".so"
             temp = util.tempdir()
             path_so = temp.relpath(so_name)
             f.export_library(path_so, ndk.create_shared)
@@ -72,7 +69,7 @@ def bench_tvm(arch, tgt, dtype, layout, opt_level):
     # connect to the proxy
     remote = rpc.connect(proxy_host, proxy_port, key=key)
 
-    if tgt == "llvm":
+    if tgt == "cpu":
         # Mobile CPU
         if arch == "armv7a":
             target = "llvm -target=armv7a-linux-android -mfloat-abi=soft"
@@ -80,9 +77,9 @@ def bench_tvm(arch, tgt, dtype, layout, opt_level):
             target = "llvm -target=%s-linux-android" % arch
         target_host = None
         ctx = remote.cpu(0)
-    elif tgt == "opencl":
+    elif tgt == "gpu":
         # Mobile GPU
-        target = tgt
+        target = opencl
         target_host = "llvm -target=%s-linux-android" % arch
         ctx = remote.cl(0)
     # TODO(Keren): how to create a mail remote?
@@ -187,7 +184,7 @@ if __name__ == "__main__":
 
         bench_tvm(target, dtype, layout, opt_level)
     else:
-        for target in ["llvm"]:
+        for target in ["cpu", "opencl"]:
             for dtype in ["int8", "float"]:
                 for layout in ["NCHW", "NHWC", "HWCN"]:
                     for opt_level in [3]:

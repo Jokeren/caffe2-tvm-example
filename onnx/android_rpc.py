@@ -22,8 +22,6 @@ proxy_host = os.environ["TVM_ANDROID_RPC_PROXY_HOST"]
 proxy_port = 9090
 key = "android"
 
-# Change target configuration.
-# Run `adb shell cat /proc/cpuinfo` to find the arch.
 
 def test_onnx_model(arch, tgt, name, opt_level):
     print("Init data...")
@@ -60,7 +58,7 @@ def test_onnx_model(arch, tgt, name, opt_level):
         graph, lib, params = nnvm.compiler.build(sym, target, {input_name: input_data_shape}, params=params, target_host=target_host, dtype=data_shapes)
 
     print('DEPLOY: shared library uploading...')
-    so_name = model.name() + "-arch64.so"
+    so_name = model.name() + "-" + arch + ".so"
     temp = util.tempdir()
     path_so = temp.relpath(so_name)
     lib.export_library(path_so, ndk.create_shared)
