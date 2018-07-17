@@ -73,7 +73,7 @@ def bench_tvm(arch, tgt, dtype, layout, opt_level):
                         timer = f.time_evaluator(f.entry_name, ctx, number=run)
                         cost = timer(tvm_input, tvm_filter, tvm_output).mean
                         print("standard--target: " + target + ", layout: " + layout + ", input_shape: " + \
-                              str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + cost)
+                              str(input_shape) + ", filter_shape: " + str(filter_shape) + "->" + str(cost))
 
     for space in spaces:
         for channel in channels:
