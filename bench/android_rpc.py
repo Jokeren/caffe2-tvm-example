@@ -182,7 +182,7 @@ if __name__ == "__main__":
         layout = sys.argv[4]
         opt_level = int(sys.argv[5])
 
-        bench_tvm(target, dtype, layout, opt_level)
+        bench_tvm(arch, target, dtype, layout, opt_level)
     else:
         for target in ["cpu", "opencl"]:
             for dtype in ["int8", "float"]:
