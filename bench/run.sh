@@ -4,11 +4,13 @@
 export TVM_ANDROID_RPC_PROXY_HOST=0.0.0.0
 
 # Specify the standalone Android C++ compiler
-if [ $2 = "armv7a" ]; then
+if [ $1 = "armv7a" ]; then
   export TVM_NDK_CC=/Users/kerenzhou/Codes/android-toolchain-armv7/bin/arm-linux-androideabi-clang++
 else
   export TVM_NDK_CC=/Users/kerenzhou/Codes/android-toolchain-arm64/bin/aarch64-linux-android-clang++
 fi
 
-# python [arch] [script] [backend] [data_type] [layout] [opt_level]
-python $1 $2 $3 $4 $5 $6
+export TVM_NUM_THREADS=1
+
+# python [arch] [remote] [opt:backend] [opt:data_type] [opt:layout] [opt:opt_level] [opt:workloads]
+python bench.py $1 $2 $3 $4 $5 $6 $7
