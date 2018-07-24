@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Specify the proxy host
-export TVM_ANDROID_RPC_PROXY_HOST=0.0.0.0
+export TVM_TRACKER_HOST=0.0.0.0
+export TVM_TRACKER_PORT=9090
 
 # Specify the standalone Android C++ compiler
 if [ $1 = "armv7a" ]; then
