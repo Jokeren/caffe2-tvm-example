@@ -1,6 +1,6 @@
 """Testcode for Android RPC.
 
-To use it in remote, start a rpc proxy with "python -m tvm.exec.rpc_proxy".
+To use it in remote, start a rpc proxy with "python -m tvm.exec.rpc_proxy --port 9090"
 And configure the proxy host field as commented.
 """
 
@@ -11,7 +11,8 @@ import time
 import os
 import sys
 import tvm
-from tvm.contrib import rpc, util, ndk
+from tvm import rpc
+from tvm.contrib import util, ndk, cc
 import topi
 from topi.util import get_const_tuple
 import numpy as np
@@ -22,8 +23,8 @@ from workloads import get_workloads
 from utils import get_input_and_filter_shape, config_arch, get_num_ops
 
 # Set to be address of tvm proxy.
-proxy_host = os.environ["TVM_ANDROID_RPC_PROXY_HOST"]
-proxy_port = 9090
+tracker_host = os.environ["TVM_TRACKER_HOST"]
+tracker_port = int(os.environ["TVM_TRACKER_PORT"])
 key = "android"
 
 
@@ -37,6 +38,7 @@ def build_and_run_host(phase, idx,
                        warmup, run):
     with tvm.build_config(opt_level=opt_level, add_pass=None):
         f_name = str(idx) + "_" + phase + "_" + str(kernel) + "_" + str(space) + "_" + str(input_channel) + "_" + str(output_channel)
+        #print(tvm.lower(ts, [input_holder, filter_holder, conv], name=f_name+".S", simple_mode=False))
 
         # build code
         try:
@@ -66,6 +68,7 @@ def build_and_run_remote(phase, idx,
                          remote):
     with tvm.build_config(opt_level=opt_level, add_pass=None):
         f_name = str(idx) + "_" + phase + "_" + str(kernel) + "_" + str(space) + "_" + str(input_channel) + "_" + str(output_channel)
+        #print(tvm.lower(ts, [input_holder, filter_holder, conv], name=f_name+".S", simple_mode=True))
 
         # build code
         # I am not sure if the configuration is runnable or not, so wrap it by a try and except
@@ -79,6 +82,7 @@ def build_and_run_remote(phase, idx,
             so_name = f_name + ".so"
             temp = util.tempdir()
             path_so = temp.relpath(so_name)
+            #f.export_library("libs/" + so_name, ndk.create_shared)
             f.export_library(path_so, ndk.create_shared)
             remote.upload(path_so)
 
@@ -95,10 +99,14 @@ def build_and_run_remote(phase, idx,
                         tvm_filter.asnumpy(), tvm_output.asnumpy(), order=layout, depthwise=True if phase == "depthwise" else False)
 
 
-def get_conv_ts(input_holder, filter_holder, stride, pad, layout, depthwise):
+def get_conv_ts(input_holder, filter_holder, stride, pad, layout, dtype, depthwise):
+    if dtype.tvm_type() == "int8":
+        output_type = "int32"
+    else:
+        output_type = dtype.tvm_type()
     if not depthwise:
         # s1
-        conv = topi.nn.conv2d(input_holder, filter_holder, stride, pad, layout)
+        conv = topi.nn.conv2d(input_holder, filter_holder, stride, pad, layout, out_dtype=output_type)
         if layout == "NCHW":
             ts = topi.generic.schedule_conv2d_nchw([conv])
         elif layout == "NHWC":
@@ -110,13 +118,13 @@ def get_conv_ts(input_holder, filter_holder, stride, pad, layout, depthwise):
         #ts = tvm.create_schedule(conv.op)
     else:
         if layout == "NCHW":
-            conv = topi.nn.depthwise_conv2d_nchw(input_holder, filter_holder, [stride, stride], pad)
+            conv = topi.nn.depthwise_conv2d_nchw(input_holder, filter_holder, [stride, stride], pad, out_dtype=output_type)
             ts = topi.generic.schedule_depthwise_conv2d_nchw([conv])
         elif layout == "NHWC":
-            conv = topi.nn.depthwise_conv2d_nhwc(input_holder, filter_holder, [stride, stride], pad)
+            conv = topi.nn.depthwise_conv2d_nhwc(input_holder, filter_holder, [stride, stride], pad, out_dtype=output_type)
             ts = topi.generic.schedule_depthwise_conv2d_nhwc([conv])
         elif layout == "HWCN":
-            conv = topi.nn.depthwise_conv2d_hwcn(input_holder, filter_holder, [stride, stride], pad)
+            conv = topi.nn.depthwise_conv2d_hwcn(input_holder, filter_holder, [stride, stride], pad, out_dtype=output_type)
             ts = topi.generic.schedule_depthwise_conv2d_hwcn([conv])
     return conv, ts
 
@@ -149,7 +157,7 @@ def bench_tvm(arch, tgt, dtype, layout, opt_level, workloads, remote):
         # create schedule
         with tvm.target.create(target):
             try:
-                conv, ts = get_conv_ts(input_holder, filter_holder, stride, pad, layout, workload.depthwise())
+                conv, ts = get_conv_ts(input_holder, filter_holder, stride, pad, layout, dtype, workload.depthwise())
             except BaseException as e:
                 print("standard--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> schedule skip".format( \
                       target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
@@ -200,7 +208,8 @@ if __name__ == "__main__":
     arch = sys.argv[1]
     if sys.argv[2] == "remote":
         # connect to the proxy
-        remote = rpc.connect(proxy_host, proxy_port, key=key)
+        tracker = rpc.connect_tracker(tracker_host, tracker_port)
+        remote = tracker.request(key, priority=0)
     else:
         remote = None
 

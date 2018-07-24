@@ -40,7 +40,9 @@ class Workload(object):
 
 def get_workloads(config):
     workloads = []
-    if config == "caffe2_standard":
+    if config == "simple_standard":
+        workloads.append(Workload(56, 64, 64, 3, 0, 1))
+    elif config == "caffe2_standard":
         spaces = [14, 26, 52, 104]
         channels = [64, 128, 256, 512]
         kernels = [1, 3]
