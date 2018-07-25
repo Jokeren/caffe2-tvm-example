@@ -1,6 +1,6 @@
 """Testcode for Android RPC.
 
-To use it in remote, start a rpc proxy with "python -m tvm.exec.rpc_proxy --port 9090"
+To use it in remote, start a rpc proxy with "python -m tvm.exec.rpc_tracker --port 9090"
 And configure the proxy host field as commented.
 """
 
@@ -82,7 +82,7 @@ def build_and_run_remote(phase, idx,
             so_name = f_name + ".so"
             temp = util.tempdir()
             path_so = temp.relpath(so_name)
-            #f.export_library("libs/" + so_name, ndk.create_shared)
+            #f.save("libs/" + so_name, "ll")
             f.export_library(path_so, ndk.create_shared)
             remote.upload(path_so)
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     if sys.argv[2] == "remote":
         # connect to the proxy
         tracker = rpc.connect_tracker(tracker_host, tracker_port)
-        remote = tracker.request(key, priority=0)
+        remote = tracker.request(key)
     else:
         remote = None
 

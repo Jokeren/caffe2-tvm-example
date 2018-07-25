@@ -1,6 +1,6 @@
 """Testcode for Android RPC onnx model.
 
-To use it, start a rpc proxy with "python -m tvm.exec.rpc_proxy".
+To use it, start a rpc proxy with "python -m tvm.exec.rpc_tracker --port 9090".
 And configure the proxy host field as commented.
 """
 
