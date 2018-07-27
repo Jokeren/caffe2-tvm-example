@@ -129,7 +129,14 @@ def get_conv_ts(input_holder, filter_holder, stride, pad, layout, dtype, depthwi
     return conv, ts
 
 
-def bench_tvm(arch, tgt, dtype, layout, opt_level, workloads, remote):
+def get_conv_target(arch, target, schedule):
+    if schedule == "manual" and arch == "armv7a":
+        return tvm.target.rasp()
+    else:
+        return tvm.target.create(target)
+
+
+def bench_tvm(arch, tgt, dtype, layout, opt_level, workloads, remote, schedule):
     target, target_host, ctx = config_arch(tgt, arch, remote)
     if target is None:
         return
@@ -155,10 +162,11 @@ def bench_tvm(arch, tgt, dtype, layout, opt_level, workloads, remote):
         filter_data = np.random.random(filter_shape)
 
         # create schedule
-        with tvm.target.create(target):
+        with get_conv_target(arch, target, schedule):
             try:
                 conv, ts = get_conv_ts(input_holder, filter_holder, stride, pad, layout, dtype, workload.depthwise())
             except BaseException as e:
+                print(e)
                 print("standard--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> schedule skip".format( \
                       target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
                 continue
@@ -219,12 +227,14 @@ if __name__ == "__main__":
         layout = sys.argv[5]
         opt_level = int(sys.argv[6])
         workloads = get_workloads(sys.argv[7])
+        schedule = sys.argv[8]
 
-        bench_tvm(arch, target, dtype, layout, opt_level, workloads, remote)
+        bench_tvm(arch, target, dtype, layout, opt_level, workloads, remote, schedule)
     else:
         for target in ["cpu"]:
             for dtype in ["int8", "float"]:
                 for layout in ["NCHW", "NHWC", "HWCN"]:
                     for opt_level in [3]:
                         for workloads in ["caffe2_depthwise", "caffe2_standard", "mobilenet"]:
-                            bench_tvm(arch, target, get_data_type(dtype), layout, opt_level, get_workloads(workloads), remote)
+                            for schedule in ["manual", "auto"]:
+                                bench_tvm(arch, target, get_data_type(dtype), layout, opt_level, get_workloads(workloads), remote, schedule)

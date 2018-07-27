@@ -92,52 +92,78 @@ def get_workloads(config):
                     workloads.append(Workload(space, channel, channel, kernel, 0, 1, warmup, run, True))
     elif config == "mobilenet":
         # conv / s2
-        workloads.append(Workload(space=224, input_channel=3, output_channel=32, pad=1, stride=2, kernel=3))
+        workloads.append(Workload(space=224, input_channel=3, output_channel=32, pad=1, stride=2, kernel=3, warmup=2, run=40))
         # conv dw / s1
         workloads.append(Workload(space=112, input_channel=32, output_channel=32, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
         # conv / s1
-        workloads.append(Workload(space=112, input_channel=32, output_channel=64, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=112, input_channel=32, output_channel=64, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # conv dw / s2
         workloads.append(Workload(space=112, input_channel=64, output_channel=64, pad=1, stride=2, kernel=3, warmup=10, run=100, depthwise=True))
         # conv / s1
-        workloads.append(Workload(space=56, input_channel=64, output_channel=128, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=56, input_channel=64, output_channel=128, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # conv dw / s1
         workloads.append(Workload(space=56, input_channel=128, output_channel=128, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
         # conv / s1
-        workloads.append(Workload(space=56, input_channel=128, output_channel=128, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=56, input_channel=128, output_channel=128, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # conv dw / s2
         workloads.append(Workload(space=56, input_channel=128, output_channel=128, pad=1, stride=2, kernel=3, warmup=10, run=100, depthwise=True))
         # conv s1
-        workloads.append(Workload(space=28, input_channel=128, output_channel=256, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=28, input_channel=128, output_channel=256, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # conv dw / s1
         workloads.append(Workload(space=28, input_channel=256, output_channel=256, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
         # conv / s1
-        workloads.append(Workload(space=28, input_channel=256, output_channel=256, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=28, input_channel=256, output_channel=256, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # conv dw / s2
         workloads.append(Workload(space=28, input_channel=256, output_channel=256, pad=1, stride=2, kernel=3, warmup=10, run=100, depthwise=True))
         # conv / s1
-        workloads.append(Workload(space=14, input_channel=256, output_channel=512, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=14, input_channel=256, output_channel=512, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # 5x
         workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
-        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1, warmup=2, run=40))
 
         workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
-        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1, warmup=2, run=40))
 
         workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
-        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1, warmup=2, run=40))
 
         workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
-        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1, warmup=2, run=40))
 
         workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=1, stride=1, kernel=3, warmup=10, run=100, depthwise=True))
-        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # conv dw / s2
         workloads.append(Workload(space=14, input_channel=512, output_channel=512, pad=1, stride=2, kernel=3, warmup=10, run=100, depthwise=True))
         # conv / s1
-        workloads.append(Workload(space=7, input_channel=512, output_channel=1024, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=7, input_channel=512, output_channel=1024, pad=0, stride=1, kernel=1, warmup=2, run=40))
         # conv dw / s2
         workloads.append(Workload(space=7, input_channel=1024, output_channel=1024, pad=1, stride=2, kernel=3, warmup=10, run=100, depthwise=True))
         # conv / s1
-        workloads.append(Workload(space=7, input_channel=1024, output_channel=1024, pad=0, stride=1, kernel=1))
+        workloads.append(Workload(space=7, input_channel=1024, output_channel=1024, pad=0, stride=1, kernel=1, warmup=2, run=40))
+    elif config == "resnet18v1":
+        # stage 0
+        workloads.append(Workload(space=224, input_channel=3, output_channel=64, kernel=7, pad=3, stride=2, warmup=2, run=2))
+        # stage 1
+        workloads.append(Workload(space=56, input_channel=64, output_channel=64, kernel=3, pad=0, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=56, input_channel=64, output_channel=64, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=56, input_channel=64, output_channel=64, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=56, input_channel=64, output_channel=64, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        # stage 2
+        workloads.append(Workload(space=56, input_channel=64, output_channel=128, kernel=1, pad=0, stride=2, warmup=2, run=2))
+        workloads.append(Workload(space=56, input_channel=64, output_channel=128, kernel=3, pad=1, stride=2, warmup=2, run=2))
+        workloads.append(Workload(space=28, input_channel=128, output_channel=128, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=28, input_channel=128, output_channel=128, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=28, input_channel=128, output_channel=128, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        # stage 3
+        workloads.append(Workload(space=28, input_channel=128, output_channel=256, kernel=1, pad=0, stride=2, warmup=2, run=2))
+        workloads.append(Workload(space=28, input_channel=128, output_channel=256, kernel=3, pad=1, stride=2, warmup=2, run=2))
+        workloads.append(Workload(space=14, input_channel=256, output_channel=256, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=14, input_channel=256, output_channel=256, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=14, input_channel=256, output_channel=256, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        # stage 4
+        workloads.append(Workload(space=14, input_channel=256, output_channel=512, kernel=1, pad=0, stride=2, warmup=2, run=2))
+        workloads.append(Workload(space=14, input_channel=256, output_channel=512, kernel=3, pad=1, stride=2, warmup=2, run=2))
+        workloads.append(Workload(space=7, input_channel=512, output_channel=512, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=7, input_channel=512, output_channel=512, kernel=3, pad=1, stride=1, warmup=2, run=2))
+        workloads.append(Workload(space=7, input_channel=512, output_channel=512, kernel=3, pad=1, stride=1, warmup=2, run=2))
     return workloads

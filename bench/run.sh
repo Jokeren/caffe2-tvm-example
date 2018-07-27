@@ -13,5 +13,5 @@ fi
 
 export TVM_NUM_THREADS=1
 
-# python [arch] [remote] [opt:backend] [opt:data_type] [opt:layout] [opt:opt_level] [opt:workloads]
-python bench.py $1 $2 $3 $4 $5 $6 $7
+# python [arch] [remote] [opt:backend] [opt:data_type] [opt:layout] [opt:opt_level] [opt:workloads] [opt:schedule]
+python bench.py $1 $2 $3 $4 $5 $6 $7 $8
