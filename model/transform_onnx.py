@@ -1,5 +1,6 @@
 import onnx
 import sys
+import os
 from onnx import ModelProto
 from caffe2.python.onnx.backend import Caffe2Backend as c2
 
@@ -12,8 +13,9 @@ def onnx_to_caffe2(onnx_model, output, init_net_output):
     output.write(predict_net.SerializeToString())
 
 if __name__ == "__main__":
-    name = sys.argv[1]
-    output = open(name + "_pred_net.pb", "w")
-    init_net_output = open(name + "_init_net.pb", "w")
-    with open(name + ".onnx", 'rb') as f:
-        onnx_to_caffe2(f, output, init_net_output)
+    model_name = sys.argv[1]
+    if not (os.path.isfile(model_name + "_pred_net.pb") or os.path.isfile(model_name + "_init_net.pb")):
+        output = open(model_name + "_pred_net.pb", "w")
+        init_net_output = open(model_name + "_init_net.pb", "w")
+        with open(model_name + ".onnx", 'rb') as f:
+            onnx_to_caffe2(f, output, init_net_output)
