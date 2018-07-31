@@ -88,6 +88,7 @@ def transform_init_net(init_net):
 def transform_pred_net(pred_net):
     norm_ops = []
     norm_output_ops = []
+    norm_output_pairs = []
     new_ops = []
     for op in pred_net.op:
         # only appears in the first layer
@@ -96,7 +97,8 @@ def transform_pred_net(pred_net):
             for output in op.output:
                 for op_ in pred_net.op:
                     if output in op_.input:
-                        norm_output_ops.append((op_, output))
+                        norm_output_ops.append(op_)
+                        norm_output_pairs.append((op_, output))
 
     for op in pred_net.op:
         if op not in norm_output_ops and \
@@ -104,7 +106,8 @@ def transform_pred_net(pred_net):
             new_ops.append(op)
 
     # change norm_output to data
-    for op, output in norm_output_ops:
+    data_ops = []
+    for op, output in norm_output_pairs:
         new_inputs = []
         for input_ in op.input:
             if output == input_:
@@ -114,7 +117,8 @@ def transform_pred_net(pred_net):
         while len(op.input) > 0:
             del op.input[-1]
         op.input.extend(new_inputs)
-        new_ops.append(op)
+        data_ops.append(op)
+    new_ops = data_ops + new_ops
 
     # delete unnecessary attrs
     for op in new_ops:
@@ -164,7 +168,7 @@ def transform_caffe2_to_onnx(model_name):
     with open(pred_net_name + ".pb", 'rb') as f:
         pred_net.ParseFromString(f.read())
         transformed_pred_net = transform_pred_net(pred_net)
-        
+    
     # We need to provide type and shape of the model inputs,
     model = get_model_config(model_name)
     if model.input_data_type() == np.float32:
@@ -185,14 +189,5 @@ def transform_caffe2_to_onnx(model_name):
 
 
 if __name__ == "__main__":
-    init_net_name = sys.argv[1]
-    init_net = caffe2_pb2.NetDef()
-    with open(init_net_name + ".pb", 'rb') as f:
-        init_net.ParseFromString(f.read())
-        transform_init_net(init_net)
-
-    pred_net_name = sys.argv[2]
-    pred_net = caffe2_pb2.NetDef()
-    with open(pred_net_name + ".pb", 'rb') as f:
-        pred_net.ParseFromString(f.read())
-        transform_pred_net(pred_net)
+    net_name = sys.argv[1]
+    transform_caffe2_to_onnx(net_name)
