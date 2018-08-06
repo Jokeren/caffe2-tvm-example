@@ -12,7 +12,7 @@ https://docs.tvm.ai/install/index.html
 
 ```
 git clone --recursive https://github.com/dmlc/tvm
-export PYTHONPATH=/path/to/tvm/python:/path/to/tvm/topi/python:${PYTHONPATH}
+export PYTHONPATH=/path/to/tvm/python:/path/to/tvm/topi/python:/path/to/tvm/nnvm/python:${PYTHONPATH}
 cd tvm
 mkdir build
 cp cmake/config.cmake build
