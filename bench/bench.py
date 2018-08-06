@@ -189,7 +189,7 @@ def bench_tvm(
         # create schedule
         with autotvm.apply_history_best(arch + "/" + log_file) if schedule == "manual" else dummy_context_mgr():
             def get_conv_target(arch, target, schedule):
-                if schedule == "manual" and target == "armv7a" or target == "aarch64":
+                if schedule == "manual" and (target == "armv7a" or target == "aarch64"):
                     return tvm.target.arm_cpu()
                 else:
                     return tvm.target.create(target)
@@ -289,7 +289,7 @@ if __name__ == "__main__":
                             "caffe2_depthwise",
                             "caffe2_standard",
                                 "mobilenet"]:
-                            for schedule in ["manual", "auto"]:
+                            for schedule in ["auto", "manual"]:
                                 bench_tvm(
                                     arch,
                                     target,
