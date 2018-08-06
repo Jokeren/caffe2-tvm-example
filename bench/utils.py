@@ -1,4 +1,6 @@
+from __future__ import print_function, absolute_import
 import tvm
+
 
 def config_arch(tgt, arch, remote=None):
     if remote is not None:
@@ -37,24 +39,41 @@ def config_arch(tgt, arch, remote=None):
     return target, target_host, ctx
 
 
-def get_input_and_filter_shape(layout, space, input_channel, output_channel, kernel, depthwise=False):
-    # init data
+def get_input_and_filter_shape(
+        layout,
+        space,
+        input_channel,
+        output_channel,
+        kernel,
+        depthwise=False):
     if layout == "NCHW":
         input_shape = (1, input_channel, space, space)
         if depthwise:
-            filter_shape = (input_channel, output_channel/input_channel, kernel, kernel)
+            filter_shape = (
+                input_channel,
+                output_channel // input_channel,
+                kernel,
+                kernel)
         else:
             filter_shape = (output_channel, input_channel, kernel, kernel)
     elif layout == "NHWC":
         input_shape = (1, space, space, input_channel)
         if depthwise:
-            filter_shape = (kernel, kernel, input_channel, output_channel/input_channel)
+            filter_shape = (
+                kernel,
+                kernel,
+                input_channel,
+                output_channel // input_channel)
         else:
             filter_shape = (kernel, kernel, input_channel, output_channel)
     elif layout == "HWCN":
         input_shape = (space, space, input_channel, 1)
         if depthwise:
-            filter_shape = (kernel, kernel, input_channel, output_channel/input_channel)
+            filter_shape = (
+                kernel,
+                kernel,
+                input_channel,
+                output_channel // input_channel)
         else:
             filter_shape = (kernel, kernel, input_channel, output_channel)
     else:
@@ -62,8 +81,14 @@ def get_input_and_filter_shape(layout, space, input_channel, output_channel, ker
     return input_shape, filter_shape
 
 
-def get_num_ops(output_space, input_channel, output_channel, kernel, depthwise=False):
+def get_num_ops(
+        output_space,
+        input_channel,
+        output_channel,
+        kernel,
+        depthwise=False):
     if depthwise:
         return output_space * output_space * output_channel * kernel * kernel * 2
     else:
-        return output_space * output_space * output_channel * kernel * kernel * input_channel * 2
+        return output_space * output_space * output_channel * \
+            kernel * kernel * input_channel * 2

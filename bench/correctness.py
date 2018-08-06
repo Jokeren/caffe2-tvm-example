@@ -1,10 +1,26 @@
+from __future__ import absolute_import
 from caffe2.python import workspace, brew
 from caffe2.python.model_helper import ModelHelper
 import numpy as np
 
-def test_correctness(input_channel, output_channel, kernel, stride, pad, tvm_input, tvm_filter, tvm_output, order="NCHW", depthwise=False):
+
+def test_correctness(
+        input_channel,
+        output_channel,
+        kernel,
+        stride,
+        pad,
+        tvm_input,
+        tvm_filter,
+        tvm_output,
+        dtype="float32",
+        order="NCHW",
+        depthwise=False):
+    if dtype is not "float32":
+        return
+
     model = ModelHelper(name="testnet")
-    if depthwise == True:
+    if depthwise:
         if order != "NCHW":
             return
         brew.group_conv(
@@ -33,8 +49,7 @@ def test_correctness(input_channel, output_channel, kernel, stride, pad, tvm_inp
             kernel=kernel,
             stride=stride,
             pad=pad,
-            order=order,
-        )
+            order=order)
     workspace.ResetWorkspace()
     workspace.RunNetOnce(model.param_init_net)
     workspace.FeedBlob("data", tvm_input)
@@ -45,6 +60,4 @@ def test_correctness(input_channel, output_channel, kernel, stride, pad, tvm_inp
     #print tvm_output.shape
     #print "caffe2"
     #print caffe2_output.shape
-    np.allclose(caffe2_output, tvm_output)
-
-
+    np.assert_allclose(caffe2_output, tvm_output)

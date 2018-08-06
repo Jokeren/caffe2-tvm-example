@@ -1,7 +1,8 @@
-"""Testcode for Android RPC.
+"""
+Benchmarking convolution performance for Android RPC.
+===========================================================
 
 To use it in remote, start a rpc proxy with "python -m tvm.exec.rpc_tracker --port 9090"
-And configure the proxy host field as commented.
 """
 
 
@@ -11,102 +12,118 @@ import time
 import os
 import sys
 import tvm
-from tvm import rpc
+from tvm import rpc, autotvm
 from tvm.contrib import util, ndk, cc
 import topi
 from topi.util import get_const_tuple
 import numpy as np
+import contextlib
 
 from data_type import get_data_type
 from correctness import test_correctness
 from workloads import get_workloads
 from utils import get_input_and_filter_shape, config_arch, get_num_ops
 
-# Set to be address of tvm proxy.
+# Set it to be address of tvm proxy.
 tracker_host = os.environ["TVM_TRACKER_HOST"]
 tracker_port = int(os.environ["TVM_TRACKER_PORT"])
 key = "android"
+log_file = "convolution_configs.log"
 
 
-def build_and_run_host(phase, idx,
-                       input_holder, filter_holder, kernel, space,
-                       input_channel, output_channel,
-                       stride, pad, layout,
-                       tvm_input, tvm_filter, tvm_output,
-                       ctx, ts, conv,
-                       target, opt_level,
-                       warmup, run):
-    with tvm.build_config(opt_level=opt_level, add_pass=None):
-        f_name = str(idx) + "_" + phase + "_" + str(kernel) + "_" + str(space) + "_" + str(input_channel) + "_" + str(output_channel)
-        #print(tvm.lower(ts, [input_holder, filter_holder, conv], name=f_name+".S", simple_mode=False))
+@contextlib.contextmanager
+def dummy_context_mgr():
+    yield None
 
-        # build code
-        try:
-            f = tvm.build(ts, [input_holder, filter_holder, conv], target, name=f_name)
-        except BaseException as e:
-            print("{0}--target: {1}, dtype: {2}, layout: {3}, stride: {4}, pad: {5}, input_shape: {6}, filter_shape: {7} -> failed".format( \
-                  phase, target, str(tvm_input.dtype), layout, str(stride), str(pad), str(input_holder.shape), str(filter_holder.shape)))
-        else:
-            timer = f.time_evaluator(f.entry_name, ctx, number=run)
-            cost = timer(tvm_input, tvm_filter, tvm_output).mean
-            print("{0}--target: {1}, dtype: {2}, layout: {3}, stride: {4}, pad: {5}, input_shape: {6}, filter_shape: {7} -> {8}".format( \
-                  phase, target, str(tvm_input.dtype), layout, str(stride), str(pad), str(input_holder.shape), str(filter_holder.shape), \
-                  cost))
-            if tvm_input.dtype == "float32":
-                test_correctness(input_channel, output_channel, kernel, stride, pad, tvm_input.asnumpy(), \
-                        tvm_filter.asnumpy(), tvm_output.asnumpy(), order=layout, depthwise=True if phase == "depthwise" else False)
 
-            
-def build_and_run_remote(phase, idx,
-                         input_holder, filter_holder, kernel, space,
-                         input_channel, output_channel, 
-                         stride, pad, layout,
-                         tvm_input, tvm_filter, tvm_output,
-                         ctx, ts, conv,
-                         target, target_host, opt_level,
-                         warmup, run,
-                         remote):
-    with tvm.build_config(opt_level=opt_level, add_pass=None):
-        f_name = str(idx) + "_" + phase + "_" + str(kernel) + "_" + str(space) + "_" + str(input_channel) + "_" + str(output_channel)
+def build_and_run(phase, idx,
+                  input_holder, filter_holder, kernel, space,
+                  input_channel, output_channel,
+                  stride, pad, layout,
+                  tvm_input, tvm_filter, tvm_output,
+                  ctx, ts, conv,
+                  target, target_host, opt_level,
+                  warmup, run, ops,
+                  remote):
+    with tvm.build_config():
+        f_name = str(idx) + "_" + phase + "_" + str(kernel) + "_" + \
+            str(space) + "_" + str(input_channel) + "_" + str(output_channel)
+        # Uncomment this line if you want to look up IR codes
         #print(tvm.lower(ts, [input_holder, filter_holder, conv], name=f_name+".S", simple_mode=True))
 
-        # build code
-        # I am not sure if the configuration is runnable or not, so wrap it by a try and except
+        # I am not sure if the configuration is runnable or not, so wrap it by
+        # a try and except
         try:
-            f = tvm.build(ts, [input_holder, filter_holder, conv], target=target, target_host=target_host, name=f_name)
+            f = tvm.build(ts, [input_holder, filter_holder, conv],
+                          target=target, target_host=target_host, name=f_name)
         except BaseException as e:
-            print("{0}--target: {1}, dtype: {2}, layout: {3}, stride: {4}, pad: {5}, input_shape: {6}, filter_shape: {7} -> failed".format( \
-                  phase, target, str(tvm_input.dtype), layout, str(stride), str(pad), str(input_holder.shape), str(filter_holder.shape)))
+            print(e)
+            print(
+                "{0}--target: {1}, dtype: {2}, layout: {3}, stride: {4}, pad: {5}, input_shape: {6}, filter_shape: {7} -> failed".format(
+                    phase, target, str(
+                        tvm_input.dtype), layout, str(stride), str(pad), str(
+                        input_holder.shape), str(
+                        filter_holder.shape)))
         else:
-            # build code
-            so_name = f_name + ".so"
-            temp = util.tempdir()
-            path_so = temp.relpath(so_name)
-            #f.save("libs/" + so_name, "ll")
-            f.export_library(path_so, ndk.create_shared)
-            remote.upload(path_so)
+            # Upload code
+            if remote is not None:
+                so_name = f_name + ".so"
+                temp = util.tempdir()
+                path_so = temp.relpath(so_name)
+                f.export_library(path_so, ndk.create_shared)
+                remote.upload(path_so)
+                f = remote.load_module(so_name)
 
-            f = remote.load_module(so_name)
+            # Warmup runs
             for _ in range(warmup):
                 f(tvm_input, tvm_filter, tvm_output)
+
+            # Evaluate runs
             timer = f.time_evaluator(f.entry_name, ctx, number=run)
             cost = timer(tvm_input, tvm_filter, tvm_output).mean
-            print("{0}--target: {1}, dtype: {2}, layout: {3}, stride: {4}, pad: {5}, input_shape: {6}, filter_shape: {7} -> {8}".format( \
-                  phase, target, str(tvm_input.dtype), layout, str(stride), str(pad), str(input_holder.shape), str(filter_holder.shape), \
-                  cost))
-            if tvm_input.dtype == "float32":
-                test_correctness(input_channel, output_channel, kernel, stride, pad, tvm_input.asnumpy(), \
-                        tvm_filter.asnumpy(), tvm_output.asnumpy(), order=layout, depthwise=True if phase == "depthwise" else False)
+            print(
+                "{0}--target: {1}, dtype: {2}, layout: {3}, stride: {4}, pad: {5}, input_shape: {6}, filter_shape: {7}, ops: {8} -> {9}".format(
+                    phase, target, str(
+                        tvm_input.dtype), layout, str(stride), str(pad), str(
+                        input_holder.shape), str(
+                        filter_holder.shape), str(ops), cost))
+
+            # Test correctness by comparing to caffe2 results
+            test_correctness(
+                input_channel,
+                output_channel,
+                kernel,
+                stride,
+                pad,
+                tvm_input.asnumpy(),
+                tvm_filter.asnumpy(),
+                tvm_output.asnumpy(),
+                dtype=tvm_input.dtype,
+                order=layout,
+                depthwise=True if phase == "depthwise" else False)
 
 
-def get_conv_ts(input_holder, filter_holder, stride, pad, layout, dtype, depthwise):
+def get_conv_ts(
+        input_holder,
+        filter_holder,
+        stride,
+        pad,
+        layout,
+        dtype,
+        depthwise):
     if dtype.tvm_type() == "int8":
         output_type = "int32"
     else:
         output_type = dtype.tvm_type()
     if not depthwise:
         # s1
-        conv = topi.nn.conv2d(input_holder, filter_holder, stride, pad, layout, out_dtype=output_type)
+        conv = topi.nn.conv2d(
+            input_holder,
+            filter_holder,
+            stride,
+            pad,
+            layout,
+            out_dtype=output_type)
         if layout == "NCHW":
             ts = topi.generic.schedule_conv2d_nchw([conv])
         elif layout == "NHWC":
@@ -118,25 +135,32 @@ def get_conv_ts(input_holder, filter_holder, stride, pad, layout, dtype, depthwi
         #ts = tvm.create_schedule(conv.op)
     else:
         if layout == "NCHW":
-            conv = topi.nn.depthwise_conv2d_nchw(input_holder, filter_holder, [stride, stride], pad, out_dtype=output_type)
+            conv = topi.nn.depthwise_conv2d_nchw(
+                input_holder, filter_holder, [
+                    stride, stride], pad, out_dtype=output_type)
             ts = topi.generic.schedule_depthwise_conv2d_nchw([conv])
         elif layout == "NHWC":
-            conv = topi.nn.depthwise_conv2d_nhwc(input_holder, filter_holder, [stride, stride], pad, out_dtype=output_type)
+            conv = topi.nn.depthwise_conv2d_nhwc(
+                input_holder, filter_holder, [
+                    stride, stride], pad, out_dtype=output_type)
             ts = topi.generic.schedule_depthwise_conv2d_nhwc([conv])
         elif layout == "HWCN":
-            conv = topi.nn.depthwise_conv2d_hwcn(input_holder, filter_holder, [stride, stride], pad, out_dtype=output_type)
+            conv = topi.nn.depthwise_conv2d_hwcn(
+                input_holder, filter_holder, [
+                    stride, stride], pad, out_dtype=output_type)
             ts = topi.generic.schedule_depthwise_conv2d_hwcn([conv])
     return conv, ts
 
 
-def get_conv_target(arch, target, schedule):
-    if schedule == "manual" and arch == "armv7a":
-        return tvm.target.rasp()
-    else:
-        return tvm.target.create(target)
-
-
-def bench_tvm(arch, tgt, dtype, layout, opt_level, workloads, remote, schedule):
+def bench_tvm(
+        arch,
+        tgt,
+        dtype,
+        layout,
+        opt_level,
+        workloads,
+        remote,
+        schedule):
     target, target_host, ctx = config_arch(tgt, arch, remote)
     if target is None:
         return
@@ -152,7 +176,8 @@ def bench_tvm(arch, tgt, dtype, layout, opt_level, workloads, remote, schedule):
         run = workload.run()
         phase = "depthwise" if workload.depthwise() else "standard"
 
-        (input_shape, filter_shape) = get_input_and_filter_shape(layout, space, input_channel, output_channel, kernel, workload.depthwise())
+        (input_shape, filter_shape) = get_input_and_filter_shape(
+            layout, space, input_channel, output_channel, kernel, workload.depthwise())
         input_holder = tvm.placeholder(input_shape, dtype=dtype.tvm_type())
         filter_holder = tvm.placeholder(filter_shape, dtype=dtype.tvm_type())
         stride_holder = tvm.var("s")
@@ -162,60 +187,77 @@ def bench_tvm(arch, tgt, dtype, layout, opt_level, workloads, remote, schedule):
         filter_data = np.random.random(filter_shape)
 
         # create schedule
-        with get_conv_target(arch, target, schedule):
-            try:
-                conv, ts = get_conv_ts(input_holder, filter_holder, stride, pad, layout, dtype, workload.depthwise())
-            except BaseException as e:
-                print(e)
-                print("standard--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> schedule skip".format( \
-                      target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
-                continue
-            else:
-                try:
-                    tvm_input = tvm.nd.array(input_data.astype(dtype.np_type()), ctx)
-                    tvm_filter = tvm.nd.array(filter_data.astype(dtype.np_type()), ctx)
-                    tvm_output = tvm.nd.array(np.zeros(get_const_tuple(conv.shape), dtype=conv.dtype), ctx)
-                    if layout == "NCHW":
-                        output_space = get_const_tuple(conv.shape)[2]
-                    elif layout == "NHWC":
-                        output_space = get_const_tuple(conv.shape)[1]
-                    elif layout == "HWCN":
-                        output_space = get_const_tuple(conv.shape)[0]
-                    print("ops: {0}".format(get_num_ops(output_space, input_channel, output_channel, kernel, workload.depthwise())))
+        with autotvm.apply_history_best(arch + "/" + log_file) if schedule == "manual" else dummy_context_mgr():
+            def get_conv_target(arch, target, schedule):
+                if schedule == "manual" and target == "armv7a" or target == "aarch64":
+                    return tvm.target.arm_cpu()
+                else:
+                    return tvm.target.create(target)
 
-                    if remote is None:
-                        build_and_run_host(phase, idx,
-                                           input_holder, filter_holder,
-                                           kernel, space,
-                                           input_channel, output_channel,
-                                           stride, pad, layout,
-                                           tvm_input, tvm_filter, tvm_output,
-                                           ctx, ts, conv,
-                                           target, opt_level,
-                                           warmup, run)
-                    else:
-                        build_and_run_remote(phase, idx,
-                                             input_holder, filter_holder,
-                                             kernel, space,
-                                             input_channel, output_channel,
-                                             stride, pad, layout,
-                                             tvm_input, tvm_filter, tvm_output,
-                                             ctx, ts, conv,
-                                             target, target_host, opt_level,
-                                             warmup, run,
-                                             remote)
+            with get_conv_target(arch, target, schedule):
+                try:
+                    conv, ts = get_conv_ts(
+                        input_holder, filter_holder, stride, pad, layout, dtype, workload.depthwise())
                 except BaseException as e:
                     print(e)
-                    print("{0}--target: {1}, dtype: {2}, layout: {3}, input_shape: {4}, filter_shape: {5} -> run skip".format( \
-                          phase, target, str(input_holder.dtype), layout, str(input_holder.shape), str(filter_holder.shape)))
-                else:
+                    print(
+                        "standard--target: {0}, dtype: {1}, layout: {2}, input_shape: {3}, filter_shape: {4} -> schedule skip".format(
+                            target, str(
+                                input_holder.dtype), layout, str(
+                                input_holder.shape), str(
+                                filter_holder.shape)))
                     continue
+                else:
+                    try:
+                        tvm_input = tvm.nd.array(
+                            input_data.astype(dtype.np_type()), ctx)
+                        tvm_filter = tvm.nd.array(
+                            filter_data.astype(dtype.np_type()), ctx)
+                        tvm_output = tvm.nd.array(
+                            np.zeros(
+                                get_const_tuple(
+                                    conv.shape),
+                                dtype=conv.dtype),
+                            ctx)
+                        if layout == "NCHW":
+                            output_space = get_const_tuple(conv.shape)[2]
+                        elif layout == "NHWC":
+                            output_space = get_const_tuple(conv.shape)[1]
+                        elif layout == "HWCN":
+                            output_space = get_const_tuple(conv.shape)[0]
+                        ops = get_num_ops(
+                            output_space,
+                            input_channel,
+                            output_channel,
+                            kernel,
+                            workload.depthwise())
+
+                        build_and_run(phase, idx,
+                                      input_holder, filter_holder,
+                                      kernel, space,
+                                      input_channel, output_channel,
+                                      stride, pad, layout,
+                                      tvm_input, tvm_filter, tvm_output,
+                                      ctx, ts, conv,
+                                      target, target_host, opt_level,
+                                      warmup, run, ops,
+                                      remote)
+                    except BaseException as e:
+                        print(e)
+                        print(
+                            "{0}--target: {1}, dtype: {2}, layout: {3}, input_shape: {4}, filter_shape: {5} -> run skip".format(
+                                phase, target, str(
+                                    input_holder.dtype), layout, str(
+                                    input_holder.shape), str(
+                                    filter_holder.shape)))
+                    else:
+                        continue
 
 
 if __name__ == "__main__":
     arch = sys.argv[1]
     if sys.argv[2] == "remote":
-        # connect to the proxy
+        # Connect to the proxy
         tracker = rpc.connect_tracker(tracker_host, tracker_port)
         remote = tracker.request(key)
     else:
@@ -229,12 +271,31 @@ if __name__ == "__main__":
         workloads = get_workloads(sys.argv[7])
         schedule = sys.argv[8]
 
-        bench_tvm(arch, target, dtype, layout, opt_level, workloads, remote, schedule)
+        bench_tvm(
+            arch,
+            target,
+            dtype,
+            layout,
+            opt_level,
+            workloads,
+            remote,
+            schedule)
     else:
         for target in ["cpu"]:
             for dtype in ["int8", "float"]:
                 for layout in ["NCHW", "NHWC", "HWCN"]:
                     for opt_level in [3]:
-                        for workloads in ["caffe2_depthwise", "caffe2_standard", "mobilenet"]:
+                        for workloads in [
+                            "caffe2_depthwise",
+                            "caffe2_standard",
+                                "mobilenet"]:
                             for schedule in ["manual", "auto"]:
-                                bench_tvm(arch, target, get_data_type(dtype), layout, opt_level, get_workloads(workloads), remote, schedule)
+                                bench_tvm(
+                                    arch,
+                                    target,
+                                    get_data_type(dtype),
+                                    layout,
+                                    opt_level,
+                                    get_workloads(workloads),
+                                    remote,
+                                    schedule)
