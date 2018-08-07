@@ -24,11 +24,14 @@ from correctness import test_correctness
 from workloads import get_workloads
 from utils import get_input_and_filter_shape, config_arch, get_num_ops
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 # Set it to be address of tvm proxy.
 tracker_host = os.environ["TVM_TRACKER_HOST"]
 tracker_port = int(os.environ["TVM_TRACKER_PORT"])
 key = "android"
-log_file = "convolution_configs.log"
+log_file = "convolutions.log"
 
 
 @contextlib.contextmanager
@@ -42,7 +45,7 @@ def build_and_run(phase, idx,
                   stride, pad, layout,
                   tvm_input, tvm_filter, tvm_output,
                   ctx, ts, conv,
-                  target, target_host, opt_level,
+                  target, target_host,
                   warmup, run, ops,
                   remote):
     with tvm.build_config():
@@ -120,8 +123,8 @@ def get_conv_ts(
         conv = topi.nn.conv2d(
             input_holder,
             filter_holder,
-            stride,
-            pad,
+            [stride, stride],
+            [pad, pad],
             layout,
             out_dtype=output_type)
         if layout == "NCHW":
@@ -157,11 +160,10 @@ def bench_tvm(
         tgt,
         dtype,
         layout,
-        opt_level,
         workloads,
         remote,
         schedule):
-    target, target_host, ctx = config_arch(tgt, arch, remote)
+    target, target_host, ctx = config_arch(tgt, arch, schedule, remote)
     if target is None:
         return
 
@@ -186,15 +188,10 @@ def bench_tvm(
         input_data = np.random.random(input_shape)
         filter_data = np.random.random(filter_shape)
 
+        log_name = "../configs/" + key + "." + log_file
         # create schedule
-        with autotvm.apply_history_best(arch + "/" + log_file) if schedule == "manual" else dummy_context_mgr():
-            def get_conv_target(arch, target, schedule):
-                if schedule == "manual" and (target == "armv7a" or target == "aarch64"):
-                    return tvm.target.arm_cpu()
-                else:
-                    return tvm.target.create(target)
-
-            with get_conv_target(arch, target, schedule):
+        with autotvm.apply_history_best(log_name) if schedule == "manual" else dummy_context_mgr():
+            with tvm.target.create(target):
                 try:
                     conv, ts = get_conv_ts(
                         input_holder, filter_holder, stride, pad, layout, dtype, workload.depthwise())
@@ -239,7 +236,7 @@ def bench_tvm(
                                       stride, pad, layout,
                                       tvm_input, tvm_filter, tvm_output,
                                       ctx, ts, conv,
-                                      target, target_host, opt_level,
+                                      target, target_host,
                                       warmup, run, ops,
                                       remote)
                     except BaseException as e:
@@ -258,16 +255,16 @@ if __name__ == "__main__":
     arch = sys.argv[1]
     if sys.argv[2] == "remote":
         # Connect to the proxy
+        key = sys.argv[3]
         tracker = rpc.connect_tracker(tracker_host, tracker_port)
         remote = tracker.request(key)
     else:
         remote = None
 
-    if len(sys.argv) > 3:
-        target = sys.argv[3]
-        dtype = get_data_type(sys.argv[4])
-        layout = sys.argv[5]
-        opt_level = int(sys.argv[6])
+    if len(sys.argv) > 4:
+        target = sys.argv[4]
+        dtype = get_data_type(sys.argv[5])
+        layout = sys.argv[6]
         workloads = get_workloads(sys.argv[7])
         schedule = sys.argv[8]
 
@@ -276,7 +273,6 @@ if __name__ == "__main__":
             target,
             dtype,
             layout,
-            opt_level,
             workloads,
             remote,
             schedule)
@@ -284,18 +280,16 @@ if __name__ == "__main__":
         for target in ["cpu"]:
             for dtype in ["int8", "float"]:
                 for layout in ["NCHW", "NHWC", "HWCN"]:
-                    for opt_level in [3]:
-                        for workloads in [
-                            "caffe2_depthwise",
-                            "caffe2_standard",
-                                "mobilenet"]:
-                            for schedule in ["auto", "manual"]:
-                                bench_tvm(
-                                    arch,
-                                    target,
-                                    get_data_type(dtype),
-                                    layout,
-                                    opt_level,
-                                    get_workloads(workloads),
-                                    remote,
-                                    schedule)
+                    for workloads in [
+                        "caffe2_depthwise",
+                        "caffe2_standard",
+                            "mobilenet"]:
+                        for schedule in ["auto", "manual"]:
+                            bench_tvm(
+                                arch,
+                                target,
+                                get_data_type(dtype),
+                                layout,
+                                get_workloads(workloads),
+                                remote,
+                                schedule)

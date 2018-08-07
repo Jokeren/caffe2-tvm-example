@@ -2,14 +2,15 @@ from __future__ import print_function, absolute_import
 import tvm
 
 
-def config_arch(tgt, arch, remote=None):
+def config_arch(tgt, arch, schedule, remote=None):
     if remote is not None:
         if tgt == "cpu":
             # Mobile CPU
+            sch = "-device=arm_cpu" if schedule == "manual" else ""
             if arch == "armv7a":
-                target = "llvm -target=armv7a-linux-android -mfloat-abi=soft"
+                target = "llvm " + sch + " -target=armv7a-linux-android -mfloat-abi=soft"
             else:
-                target = "llvm -target=%s-linux-android" % arch
+                target = "llvm " + sch + " -target=%s-linux-android" % arch
             target_host = None
             ctx = remote.cpu(0)
         elif tgt == "gpu":
