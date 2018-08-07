@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 
 
@@ -43,5 +44,7 @@ def get_model_config(model):
         return ModelConfig("personsegmentation", "data_0", "output_0", (1, 3, 192, 192), (1, 1000))
     elif model == "mobilenet":
         return ModelConfig("mobilenet", "data_0", "output_0", (1, 3, 224, 224), (1, 1000))
+    elif model == "resnet18v1":
+        return ModelConfig("resnet18v1", "data", "output", (1, 3, 224, 224), (1, 1000))
     else:
         return None
