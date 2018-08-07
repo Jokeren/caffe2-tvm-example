@@ -31,7 +31,6 @@ logging.basicConfig(level=logging.DEBUG)
 tracker_host = os.environ["TVM_TRACKER_HOST"]
 tracker_port = int(os.environ["TVM_TRACKER_PORT"])
 key = "android"
-log_file = "convolutions.log"
 
 
 @contextlib.contextmanager
@@ -188,7 +187,7 @@ def bench_tvm(
         input_data = np.random.random(input_shape)
         filter_data = np.random.random(filter_shape)
 
-        log_name = "../configs/" + key + "." + log_file
+        log_name = "../configs/" + key + ".convolutions.log"
         # create schedule
         with autotvm.apply_history_best(log_name) if schedule == "manual" else dummy_context_mgr():
             with tvm.target.create(target):
