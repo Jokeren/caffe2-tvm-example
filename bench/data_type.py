@@ -19,12 +19,18 @@ class DataType(object):
         return self._tvm_type
 
 
+class CompositeDataType(object):
+    float32 = DataType(["float32", "float"], np.float32, "float32")
+    int32 = DataType(["int", "int32"], np.int32, "int32")
+    int8 = DataType(["int8", "char"], np.int8, "int8")
+
+
 def get_data_type(name):
-    if name == "int" or name == "int32":
-        return DataType(name, np.int32, "int32")
-    elif name == "int8" or name == "char":
-        return DataType(name, np.int8, "int8")
-    elif name == "float" or name == "float32":
-        return DataType(name, np.float32, "float32")
+    if name in CompositeDataType.float32.name():
+        return CompositeDataType.float32
+    elif name in CompositeDataType.int32.name():
+        return CompositeDataType.int32
+    elif name in CompositeDataType.int8.name():
+        return CompositeDataType.int8
     else:
         return None

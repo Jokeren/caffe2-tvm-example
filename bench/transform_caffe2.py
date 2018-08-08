@@ -7,18 +7,19 @@ from caffe2.python import core, utils, workspace
 from caffe2.proto import caffe2_pb2
 
 import numpy as np
-from models import get_model_config
+from workloads import get_model_config
+from data_type import CompositeDataType
 
-
-#TODO(keren): uint16?
+# TODO(keren): uint16?
 TensorNameMapper = {
-        np.dtype('float32'): "GivenTensorFill",
-        np.dtype('uint16'): "GivenTensorIntFill",
-        np.dtype('int16'): "GivenTensorIntFill",
-        np.dtype('int32'): "GivenTensorIntFill",
-        np.dtype('int64'): "GivenTensorInt64Fill",
-        np.dtype('uint8'): "GivenTensorStringFill",
-        }
+    np.dtype('float32'): "GivenTensorFill",
+    np.dtype('uint16'): "GivenTensorIntFill",
+    np.dtype('int16'): "GivenTensorIntFill",
+    np.dtype('int32'): "GivenTensorIntFill",
+    np.dtype('int64'): "GivenTensorInt64Fill",
+    np.dtype('uint8'): "GivenTensorStringFill",
+}
+
 
 def copy_from(input_net):
     output_net = caffe2_pb2.NetDef()
@@ -31,6 +32,7 @@ def copy_from(input_net):
     output_net.external_input.extend(input_net.external_input)
     output_net.external_output.extend(input_net.external_output)
     return output_net
+
 
 def transform_init_net(init_net):
     decompress_ops = []
@@ -52,9 +54,9 @@ def transform_init_net(init_net):
 
     for op in init_net.op:
         if op not in decompress_ops and \
-           op not in decompress_input_ops and \
-           op not in byte_weight_dequant_ops and \
-           op not in constant_ops:
+                op not in decompress_input_ops and \
+                op not in byte_weight_dequant_ops and \
+                op not in constant_ops:
             new_ops.append(op)
 
     # get decompressed results
@@ -79,7 +81,7 @@ def transform_init_net(init_net):
                                      arg=[utils.MakeArgument("shape", shape),
                                           utils.MakeArgument("values", values)])
             new_ops.append(op)
-    
+
     new_init_net = copy_from(init_net)
     new_init_net.op.extend(new_ops)
     return new_init_net
@@ -102,7 +104,7 @@ def transform_pred_net(pred_net):
 
     for op in pred_net.op:
         if op not in norm_output_ops and \
-           op not in norm_ops:
+                op not in norm_ops:
             new_ops.append(op)
 
     # change norm_output to data
@@ -126,12 +128,12 @@ def transform_pred_net(pred_net):
             args = []
             for arg in op.arg:
                 if arg.name != "convolution_transform_strategy" and \
-                   arg.name != "shared_buffer" and \
-                   arg.name != "init_params" and \
-                   arg.name != "algo" and \
-                   arg.name != "exhaustive_search" and \
-                   arg.name != "adj" and \
-                   arg.name != "hwgq":
+                        arg.name != "shared_buffer" and \
+                        arg.name != "init_params" and \
+                        arg.name != "algo" and \
+                        arg.name != "exhaustive_search" and \
+                        arg.name != "adj" and \
+                        arg.name != "hwgq":
                     args.append(arg)
             while len(op.arg) > 0:
                 del op.arg[-1]
@@ -153,11 +155,11 @@ def transform_pred_net(pred_net):
 
 
 def transform_caffe2_to_onnx(model_name):
-    if os.path.isfile(model_name + ".onnx"):
+    if os.path.isfile("onnx/" + model_name + ".onnx"):
         return
 
-    init_net_name = model_name + "_init_net"
-    pred_net_name = model_name + "_pred_net"
+    init_net_name = "caffe2/" + model_name + "_init_net"
+    pred_net_name = "caffe2/" + model_name + "_pred_net"
 
     init_net = caffe2_pb2.NetDef()
     with open(init_net_name + ".pb", 'rb') as f:
@@ -168,24 +170,25 @@ def transform_caffe2_to_onnx(model_name):
     with open(pred_net_name + ".pb", 'rb') as f:
         pred_net.ParseFromString(f.read())
         transformed_pred_net = transform_pred_net(pred_net)
-    
+
     # We need to provide type and shape of the model inputs,
     model = get_model_config(model_name)
-    if model.input_data_type() == np.float32:
+    data_type = onnx.TensorProto.FLOAT
+    if model.input_data_type() == CompositeDataType.float32:
         data_type = onnx.TensorProto.FLOAT
     data_shape = model.input_shape()
     value_info = {
-            'data': (data_type, data_shape)
-            }
+        'data': (data_type, data_shape)
+    }
 
     onnx_model = caffe2.python.onnx.frontend.caffe2_net_to_onnx_model(
-            transformed_pred_net,
-            transformed_init_net,
-            value_info,
-            )
+        transformed_pred_net,
+        transformed_init_net,
+        value_info,
+    )
 
     onnx.checker.check_model(onnx_model)
-    onnx.save(onnx_model, model_name + ".onnx")
+    onnx.save(onnx_model, "onnx/" + model_name + ".onnx")
 
 
 if __name__ == "__main__":
