@@ -19,7 +19,7 @@ from tvm import rpc, autotvm
 from tvm.contrib import util, ndk, graph_runtime
 from workloads import get_workloads
 
-# Uncomment lines below to dump TVM IR
+# Change logging level to DEBUG to dump TVM IR
 import logging
 logging.basicConfig(level=logging.INFO)
 
