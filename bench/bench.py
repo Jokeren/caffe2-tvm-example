@@ -58,9 +58,11 @@ def run_tvm(name, input_name, input_data,
         module.run()
 
     logging.debug('Benchmark...')
-    ftimer = module.module.time_evaluator("run", ctx, run)
-    prof_res = ftimer().mean
-    logging.info(name + ": " + str(prof_res))
+    ftimer = module.module.time_evaluator("run", ctx, number=1, repeat=run)
+    prof_res = np.array(ftimer().results)
+    mean = np.mean(prof_res)
+    stddev = np.std(prof_res)
+    logging.info(name + "->running time: " + str(mean) + ", stddev: " + str(stddev))
 
 
 def config_arch(tgt, arch, schedule, remote=None):
