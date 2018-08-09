@@ -157,10 +157,6 @@ def get_resnet18v1_convs():
              create_workload("resnet18v1.conv18", 7, 512, 512, 3, stride=1, padding=1, run=50),
              create_workload("resnet18v1.conv19", 7, 512, 512, 3, stride=1, padding=1, run=50),
              create_workload("resnet18v1.conv20", 7, 512, 512, 3, stride=1, padding=1, run=50)]
-    # stage 1
-    # stage 2
-    # stage 3
-    # stage 4
     return convs
 
 

@@ -7,7 +7,6 @@ class DataType(object):
         self._name = name
         self._np_type = np_type
         self._tvm_type = tvm_type
-        return
 
     def name(self):
         return self._name
