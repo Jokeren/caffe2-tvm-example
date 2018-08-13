@@ -160,6 +160,37 @@ def get_resnet18v1_convs():
     return convs
 
 
+def get_mobilenetv1_convs():
+    convs = [create_workload("mobilenetv1.conv1", 224, 3, 32, 3, stride=2, padding=1, warmup=10, run=50),
+             create_workload("mobilenetv1.conv2", 112, 32, 32, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv3", 112, 32, 64, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv4", 112, 64, 64, 3, stride=2, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv5", 56, 64, 128, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv6", 56, 128, 128, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv7", 56, 128, 128, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv8", 56, 128, 128, 3, stride=2, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv9", 28, 128, 256, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv10", 28, 256, 256, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv11", 28, 256, 256, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv12", 28, 256, 256, 3, stride=2, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv13", 14, 256, 512, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv14", 14, 512, 512, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv15", 14, 512, 512, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv16", 14, 512, 512, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv17", 14, 512, 512, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv18", 14, 512, 512, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv19", 14, 512, 512, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv20", 14, 512, 512, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv21", 14, 512, 512, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv22", 14, 512, 512, 3, stride=1, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv23", 14, 512, 512, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv24", 14, 512, 512, 3, stride=2, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv25", 7, 512, 1024, 1, stride=1, padding=0, warmup=10, run=50),
+             create_workload("mobilenetv1.conv26", 7, 1024, 1024, 3, stride=2, padding=1, warmup=10, run=50, depthwise=True),
+             create_workload("mobilenetv1.conv27", 7, 1024, 1024, 1, stride=1, padding=0, warmup=10, run=50)]
+    return convs
+
+
 def get_workloads(config):
     workloads = []
     if config == "simple_standard":
@@ -175,12 +206,14 @@ def get_workloads(config):
         net, params = nnvm.frontend.from_onnx(onnx_graph)
         workloads.append(Workload(model, net, params))
     elif config == "resnet18v1_convs":
-        workloads.append(get_resnet18v1_convs())
+        workloads += get_resnet18v1_convs()
     elif config == "squeezenetv1.1_nnvm":
         model = get_model_config("squeezenetv1.1")
         model._input_name = "data"
         net, params = nnvm.testing.squeezenet.get_workload(version='1.1')
         workloads.append(Workload(model, net, params))
+    elif config == "mobilenetv1_convs":
+        workloads += get_mobilenetv1_convs()
     elif config == "mobilenetv1_nnvm":
         model = get_model_config("mobilenetv1")
         model._input_name = "data"
