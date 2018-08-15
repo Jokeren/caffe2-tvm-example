@@ -47,20 +47,7 @@ tuning_option = {
 # ----------------------------------------
 
 Workload = collections.namedtuple("Workload", ["space", "input_channel", "output_channel", "kernel", "pad", "stride"])
-WORKLOADS = [
-        Workload(space=192, input_channel=3, output_channel=12, kernel=3, pad=1, stride=1),
-        Workload(space=96, input_channel=12, output_channel=24, kernel=3, pad=1, stride=1),
-        Workload(space=48, input_channel=24, output_channel=48, kernel=3, pad=1, stride=1),
-        Workload(space=24, input_channel=48, output_channel=96, kernel=3, pad=1, stride=1),
-        Workload(space=12, input_channel=96, output_channel=180, kernel=3, pad=1, stride=1),
-        Workload(space=6, input_channel=180, output_channel=220, kernel=3, pad=1, stride=1),
-        Workload(space=6, input_channel=220, output_channel=180, kernel=3, pad=1, stride=1),
-        Workload(space=12, input_channel=180, output_channel=96, kernel=3, pad=1, stride=1),
-        Workload(space=24, input_channel=96, output_channel=48, kernel=3, pad=1, stride=1),
-        Workload(space=48, input_channel=48, output_channel=24, kernel=3, pad=1, stride=1),
-        Workload(space=96, input_channel=24, output_channel=12, kernel=3, pad=1, stride=1),
-        Workload(space=192, input_channel=12, output_channel=1, kernel=3, pad=1, stride=1)]
-
+WORKLOADS = []
 
 
 ######################################################################
