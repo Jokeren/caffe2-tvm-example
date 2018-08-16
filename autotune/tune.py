@@ -1,3 +1,11 @@
+"""
+Autotuning convolution performance for Android RPC.
+===========================================================
+
+To use it in remote, start a rpc proxy with "python -m tvm.exec.rpc_tracker --port 9090"
+"""
+
+
 from __future__ import division
 from topi.util import get_const_tuple
 import tvm
@@ -19,7 +27,7 @@ import os
 
 arch = 'armv7a'
 
-device_key = 'oppof3'
+device_key = '1plus'
 
 task_name = 'fast_winograd'
 log_file = '../configs/' + device_key + '.log'
