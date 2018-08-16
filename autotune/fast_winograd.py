@@ -374,7 +374,6 @@ def decl_winograd(cfg, data, kernel, strides, padding, layout, out_dtype, VK=6, 
 def schedule_winograd(cfg, output, VK=6, VP=8):
     s = tvm.create_schedule(output.op)
     if not cfg:
-        print("herehere111")
         return s
     if output.name == "Y":
         Y = output
@@ -473,7 +472,6 @@ def schedule_winograd(cfg, output, VK=6, VP=8):
         s[V].vectorize(bb)
     if cfg['V_REORDER_C'].val:
         s[V].reorder(b, eps, nu, c, bb)
-    print('reorder {}'.format(cfg['V_REORDER_C'].val))
 
     if cfg['B_T_dot_X_COMPUTE_AT'].val:
         s[B_T_dot_X].compute_at(s[V], b)
